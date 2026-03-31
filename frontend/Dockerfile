@@ -16,7 +16,6 @@ RUN npm run build
 FROM nginx:alpine
 # Copie les fichiers compilés depuis l'étape 'build'
 COPY --from=build /app/dist /usr/share/nginx/html
-# Remplace la configuration par défaut de Nginx si tu as un fichier spécifique
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

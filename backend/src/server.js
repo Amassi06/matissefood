@@ -41,7 +41,7 @@ app.use('/api/', apiLimiter);
 app.use('/api/play/', playLimiter);
 
 // Body parsing
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
