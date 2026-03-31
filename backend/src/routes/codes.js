@@ -31,13 +31,12 @@ router.post('/generate', authMiddleware, async (req, res) => {
             attempts++;
             const code = generateShortCode();
 
-            // Check uniqueness
-            const exists = await prisma.code.findUnique({ where: { code } });
-            if (!exists) {
-                const created = await prisma.code.create({
-                    data: { code }
-                });
+            try {
+                const created = await prisma.code.create({ data: { code } });
                 codes.push(created);
+            } catch (e) {
+                // P2002 = unique constraint violation — collision, just retry
+                if (e.code !== 'P2002') throw e;
             }
         }
 
