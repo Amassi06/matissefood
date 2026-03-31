@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CodeStatus {
+  GENERATED
+  PLAYED
+  REDEEMED
+}
+
+enum PrizeTier {
+  LOSS
+  SMALL
+  MEDIUM
+  JACKPOT
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Code {
+  id         String     @id @default(uuid())
+  code       String     @unique @db.VarChar(10)
+  status     CodeStatus @default(GENERATED)
+  prizeId    String?
+  prize      Prize?     @relation(fields: [prizeId], references: [id])
+  createdAt  DateTime   @default(now())
+  playedAt   DateTime?
+  redeemedAt DateTime?
+
+  @@index([status])
+  @@index([code])
+}
+
+model Prize {
+  id          String    @id @default(uuid())
+  name        String
+  description String    @default("")
+  probability Float
+  isActive    Boolean   @default(true)
+  tier        PrizeTier
+  codes       Code[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Settings {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+}

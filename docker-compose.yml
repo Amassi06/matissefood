@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: roue_fortune
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env.docker
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && 
+             npx prisma db seed && 
+             node src/server.js"
+
+  frontend:
+    build:
+     context: ./frontend
+     args:
+        - VITE_API_URL=https://localhost/api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
