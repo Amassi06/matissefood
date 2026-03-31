@@ -34,7 +34,7 @@ services:
     build:
      context: ./frontend
      args:
-        - VITE_API_URL=https://localhost/api
+        - VITE_API_URL=https://matissefood.aimassi.dev/api
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
