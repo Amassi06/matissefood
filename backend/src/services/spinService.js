@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { randomInt } = require('crypto');
 const prisma = new PrismaClient();
 
 /**
@@ -33,34 +34,46 @@ async function spinWheel(codeId) {
         normalizedProb: p.probability / totalProbability
     }));
 
-    // Weighted random selection
-    const random = Math.random();
+    // Weighted random selection using a CSPRNG
+    // Scale to integer range to avoid floating-point accumulation errors
+    const PROBABILITY_SCALE = 1_000_000;
+    const totalScaled = Math.round(totalProbability * PROBABILITY_SCALE);
+    const random = randomInt(0, totalScaled);
     let cumulative = 0;
     let selectedPrize = normalizedPrizes[normalizedPrizes.length - 1]; // fallback
 
     for (const prize of normalizedPrizes) {
-        cumulative += prize.normalizedProb;
-        if (random <= cumulative) {
+        cumulative += Math.round(prize.probability * PROBABILITY_SCALE);
+        if (random < cumulative) {
             selectedPrize = prize;
             break;
         }
     }
 
-    // Burn the code — atomic update
-    const updatedCode = await prisma.code.update({
-        where: {
-            id: codeId,
-            status: 'GENERATED' // Optimistic lock
-        },
-        data: {
-            status: 'PLAYED',
-            prizeId: selectedPrize.id,
-            playedAt: new Date()
-        },
-        include: {
-            prize: true
+    // Burn the code — atomic update with optimistic lock
+    let updatedCode;
+    try {
+        updatedCode = await prisma.code.update({
+            where: {
+                id: codeId,
+                status: 'GENERATED' // Optimistic lock
+            },
+            data: {
+                status: 'PLAYED',
+                prizeId: selectedPrize.id,
+                playedAt: new Date()
+            },
+            include: {
+                prize: true
+            }
+        });
+    } catch (e) {
+        // P2025 = record not found (status changed between check and update)
+        if (e.code === 'P2025') {
+            throw new Error('Ce code a déjà été utilisé.');
         }
-    });
+        throw e;
+    }
 
     return {
         codeId: updatedCode.id,

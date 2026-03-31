@@ -5,6 +5,42 @@ const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// POST /api/redeem/lookup/code — Look up a code by its value (admin/staff only)
+router.post('/lookup/code', authMiddleware, async (req, res) => {
+    try {
+        const { code } = req.body;
+
+        if (!code) {
+            return res.status(400).json({ error: 'Code requis.' });
+        }
+
+        const foundCode = await prisma.code.findUnique({
+            where: { code: code.toUpperCase().trim() },
+            include: { prize: true }
+        });
+
+        if (!foundCode) {
+            return res.status(404).json({ error: 'Code introuvable.' });
+        }
+
+        res.json({
+            id: foundCode.id,
+            code: foundCode.code,
+            status: foundCode.status,
+            prize: foundCode.prize ? {
+                name: foundCode.prize.name,
+                description: foundCode.prize.description,
+                tier: foundCode.prize.tier
+            } : null,
+            playedAt: foundCode.playedAt,
+            redeemedAt: foundCode.redeemedAt
+        });
+    } catch (err) {
+        console.error('Lookup error:', err);
+        res.status(500).json({ error: 'Erreur lors de la recherche.' });
+    }
+});
+
 // POST /api/redeem/:codeId — Mark a prize as redeemed (admin/staff only)
 router.post('/:codeId', authMiddleware, async (req, res) => {
     try {
@@ -49,42 +85,6 @@ router.post('/:codeId', authMiddleware, async (req, res) => {
     } catch (err) {
         console.error('Redeem error:', err);
         res.status(500).json({ error: 'Erreur lors de la réclamation.' });
-    }
-});
-
-// POST /api/redeem/lookup — Look up a code by its value (admin/staff only)
-router.post('/lookup/code', authMiddleware, async (req, res) => {
-    try {
-        const { code } = req.body;
-
-        if (!code) {
-            return res.status(400).json({ error: 'Code requis.' });
-        }
-
-        const foundCode = await prisma.code.findUnique({
-            where: { code: code.toUpperCase().trim() },
-            include: { prize: true }
-        });
-
-        if (!foundCode) {
-            return res.status(404).json({ error: 'Code introuvable.' });
-        }
-
-        res.json({
-            id: foundCode.id,
-            code: foundCode.code,
-            status: foundCode.status,
-            prize: foundCode.prize ? {
-                name: foundCode.prize.name,
-                description: foundCode.prize.description,
-                tier: foundCode.prize.tier
-            } : null,
-            playedAt: foundCode.playedAt,
-            redeemedAt: foundCode.redeemedAt
-        });
-    } catch (err) {
-        console.error('Lookup error:', err);
-        res.status(500).json({ error: 'Erreur lors de la recherche.' });
     }
 });
 

@@ -4,6 +4,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+// Fail fast if required environment variables are missing
+const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL'];
+const missingEnv = REQUIRED_ENV.filter(key => !process.env[key]);
+if (missingEnv.length > 0) {
+    console.error(`❌ Missing required environment variables: ${missingEnv.join(', ')}`);
+    process.exit(1);
+}
+
 const authRoutes = require('./routes/auth');
 const codesRoutes = require('./routes/codes');
 const prizesRoutes = require('./routes/prizes');

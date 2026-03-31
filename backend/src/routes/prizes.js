@@ -26,8 +26,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
         const { name, description, probability, isActive } = req.body;
 
         const updateData = {};
-        if (name !== undefined) updateData.name = name;
-        if (description !== undefined) updateData.description = description;
+        if (name !== undefined) {
+            const trimmedName = String(name).trim();
+            if (!trimmedName || trimmedName.length > 100) {
+                return res.status(400).json({ error: 'Le nom doit contenir entre 1 et 100 caractères.' });
+            }
+            updateData.name = trimmedName;
+        }
+        if (description !== undefined) updateData.description = String(description).trim().slice(0, 500);
         if (probability !== undefined) {
             const prob = parseFloat(probability);
             if (isNaN(prob) || prob < 0 || prob > 100) {
@@ -54,7 +60,18 @@ router.post('/', authMiddleware, async (req, res) => {
     try {
         const { name, description, probability, tier } = req.body;
 
-        if (!name || probability === undefined || !tier) {
+        const trimmedName = name ? String(name).trim() : '';
+        if (!trimmedName || trimmedName.length > 100) {
+            return res.status(400).json({ error: 'Le nom doit contenir entre 1 et 100 caractères.' });
+        }
+        if (probability === undefined || probability === null) {
+            return res.status(400).json({ error: 'Probabilité requise.' });
+        }
+        const prob = parseFloat(probability);
+        if (isNaN(prob) || prob < 0 || prob > 100) {
+            return res.status(400).json({ error: 'La probabilité doit être entre 0 et 100.' });
+        }
+        if (!tier) {
             return res.status(400).json({ error: 'Nom, probabilité et niveau requis.' });
         }
 
@@ -65,9 +82,9 @@ router.post('/', authMiddleware, async (req, res) => {
 
         const prize = await prisma.prize.create({
             data: {
-                name,
-                description: description || '',
-                probability: parseFloat(probability),
+                name: trimmedName,
+                description: description ? String(description).trim().slice(0, 500) : '',
+                probability: prob,
                 tier
             }
         });

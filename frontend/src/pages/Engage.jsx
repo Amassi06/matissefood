@@ -1,24 +1,41 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { getPublicSettings } from '../services/api'
 
-const GOOGLE_MAPS_URL = 'https://www.google.com/maps/place/Matisse+Food+Ivry/@48.8177259,2.3704562,485m/data=!3m1!1e3!4m8!3m7!1s0x47e673e44823606b:0x3e9e5c3d56cea04a!8m2!3d48.8177259!4d2.3730365!9m1!1b1!16s%2Fg%2F11trls3d2h?entry=ttu'
+const DEFAULT_TIMER = 15
+const DEFAULT_GOOGLE_MAPS_URL = 'https://www.google.com/maps'
 
 export default function Engage() {
     const navigate = useNavigate()
-    const [timer, setTimer] = useState(15)
+    const [timer, setTimer] = useState(DEFAULT_TIMER)
     const [hasEngaged, setHasEngaged] = useState(false)
     const [canProceed, setCanProceed] = useState(false)
+    const [googleMapsUrl, setGoogleMapsUrl] = useState(DEFAULT_GOOGLE_MAPS_URL)
 
-    // Check that user came from the code entry
+    // Check that user came from the code entry + load settings
     useEffect(() => {
         const codeId = sessionStorage.getItem('codeId')
         if (!codeId) {
             navigate('/play')
+            return
         }
+
+        getPublicSettings()
+            .then(res => {
+                const { settings } = res.data
+                if (settings.googleMapsUrl) setGoogleMapsUrl(settings.googleMapsUrl)
+                if (settings.engagementTimerSeconds) {
+                    const seconds = parseInt(settings.engagementTimerSeconds, 10)
+                    if (!isNaN(seconds) && seconds > 0) setTimer(seconds)
+                }
+            })
+            .catch(() => {
+                // Fallback to defaults if settings can't be loaded
+            })
     }, [navigate])
 
-    // Countdown timer after engagement
+    // Countdown timer after engagement — uses duration already set from settings
     useEffect(() => {
         if (!hasEngaged) return
 
@@ -37,9 +54,10 @@ export default function Engage() {
     }, [hasEngaged])
 
     const handleGoogleReview = useCallback(() => {
-        window.open(GOOGLE_MAPS_URL, '_blank')
+        const win = window.open(googleMapsUrl, '_blank')
+        if (win) win.opener = null
         setHasEngaged(true)
-    }, [])
+    }, [googleMapsUrl])
 
     const handleProceed = () => {
         navigate('/spin')
